@@ -320,7 +320,7 @@ with pde_tab:
                  try:
                     u = np.asarray(eval(bc_left, {"t": _*dt, "np": np})).item()
                     u[-1] = np.asarray(eval(bc_right, {"t": _*dt, "np": np})).item()
-                except:
+                 except:
                     u = 0.0
                     u[-1] = 0.0
 

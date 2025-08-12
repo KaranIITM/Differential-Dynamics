@@ -146,8 +146,8 @@ with ode_tab:
         T, Y = start_rk4(f, t0, y0, h)
         for i in range(3, n):
             t = T[-1] + h
-            y = Y[-1] + h/24*(55*np.array(f(T[-1], Y[-1])) -59*np.array(f(T[-2], Y[-2]))
-                              +37*np.array(f(T[-3], Y[-3])) -9*np.array(f(T[-4], Y[-4])))
+            y = np.array(Y[-1] + h/24*(55*np.array(f(T[-1], Y[-1])) -59*np.array(f(T[-2], Y[-2]))
+                              +37*np.array(f(T[-3], Y[-3])) -9*np.array(f(T[-4], Y[-4]))))
             T = np.append(T, t)
             Y = np.vstack([Y, y])
         return T, Y
@@ -156,25 +156,29 @@ with ode_tab:
         T, Y = start_rk4(f, t0, y0, h)
         for i in range(3, n):
             t_pred = T[-1] + h
-            y_pred = Y[-1] + h/24*(55*np.array(f(T[-1], Y[-1])) -59*np.array(f(T[-2], Y[-2]))
-                                   +37*np.array(f(T[-3], Y[-3])) -9*np.array(f(T[-4], Y[-4])))
-            y_corr = Y[-1] + h/24*(9*np.array(f(t_pred, y_pred)) +19*np.array(f(T[-1], Y[-1]))
-                                   -5*np.array(f(T[-2], Y[-2])) +np.array(f(T[-3], Y[-3])))  # FIXED: Added missing np.array()
+            y_pred = np.array(Y[-1] + h/24*(55*np.array(f(T[-1], Y[-1])) -59*np.array(f(T[-2], Y[-2]))
+                                   +37*np.array(f(T[-3], Y[-3])) -9*np.array(f(T[-4], Y[-4]))))
+            y_corr = np.array(Y[-1] + h/24*(9*np.array(f(t_pred, y_pred)) +19*np.array(f(T[-1], Y[-1]))
+                                   -5*np.array(f(T[-2], Y[-2])) +np.array(f(T[-3], Y[-3]))))  # FIXED: Added missing np.array()
             T = np.append(T, t_pred)
             Y = np.vstack([Y, y_corr])
         return T, Y
-
+    
     def bdf2(f, t0, y0, h, n, its=5):
-        T = [t0, t0+h]
-        Y = [y0, y0 + h*np.array(f(t0, y0))]
+        T = np.zeros(n+1)
+        Y = np.zeros((n+1, len(y0)))
+        T[0], T[1] = t0, t0+h
+        Y = y0
+        Y[1] = y0 + h*np.array(f(t0, y0))
         for i in range(1, n):
-            t_next = T[-1] + h
-            y = Y[-1]           # initial guess
+            t_next = T[i] + h
+            y = Y[i]           # initial guess
             for _ in range(its):
-                y = (4*Y[-1] -Y[-2] +2*h*np.array(f(t_next, y)))/3
-            T.append(t_next)
-            Y.append(y)
-        return np.array(T), np.array(Y)
+                y = (4*Y[i] - Y[i-1] + 2*h*np.array(f(t_next, y)))/3
+            T[i+1] = t_next
+            Y[i+1] = y
+        return T, Y
+
 
     def verlet(accel, t0, y0, h, n):
         if len(y0) != 2:  # FIXED: Added validation
@@ -194,17 +198,18 @@ with ode_tab:
         return T, Y
 
     def stormer_verlet(force, t0, y0, h, n):
-        if len(y0) != 2:  # FIXED: Added validation
+        if len(y0) != 2:
             st.error("Stormer-Verlet method requires exactly 2 initial conditions [position, momentum]")
             st.stop()
         T = np.linspace(t0, t0+n*h, n+1)
         Y = np.zeros((n+1, 2))
-        Y[0] = y0  # FIXED: Proper initialization
+        Y = y0
         p_half = Y[0, 1] + 0.5*h*force(t0, Y[0, 0])
         for i in range(n):
             q_next = Y[i, 0] + h*p_half
             p_next = p_half + 0.5*h*force(T[i+1], q_next)
-            Y[i+1] = [q_next, p_next]
+            Y[i+1, 0] = q_next  # FIXED: Assign individual elements
+            Y[i+1, 1] = p_next  # FIXED: Assign individual elements
             p_half = p_next + 0.5*h*force(T[i+1], q_next)
         return T, Y
 
@@ -312,13 +317,13 @@ with pde_tab:
                 C_inv = np.linalg.inv(C)
 
             for _ in range(int(Nt)):
-                # FIXED: Proper boundary condition handling
-                try:
-                    u[0] = float(eval(bc_left, {"t": _*dt, "np": np}))
-                    u[-1] = float(eval(bc_right, {"t": _*dt, "np": np}))
+                 try:
+                    u = np.asarray(eval(bc_left, {"t": _*dt, "np": np})).item()
+                    u[-1] = np.asarray(eval(bc_right, {"t": _*dt, "np": np})).item()
                 except:
-                    u = 0  # default boundary
-                    u[-1] = 0
+                    u = 0.0
+                    u[-1] = 0.0
+
 
                 if scheme == "Forward-Euler":
                     u = A @ u
@@ -345,8 +350,13 @@ with pde_tab:
             # steady-state solution via Gauss-Seidel
             u = np.zeros_like(x)
             for _ in range(int(Nt)):
-                u[0] = float(eval(bc_left, {"np": np}))  # FIXED: Added proper evaluation
-                u[-1] = float(eval(bc_right, {"np": np}))
+                try:
+                    u = np.asarray(eval(bc_left, {"np": np})).item()
+                    u[-1] = np.asarray(eval(bc_right, {"np": np})).item()
+                except:
+                    u = 0.0
+                    u[-1] = 0.0
+
                 for i in range(1, len(x)-1):
                     u[i] = 0.5*(u[i-1] + u[i+1])
             u_all = [u]

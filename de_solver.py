@@ -325,13 +325,13 @@ with pde_tab:
                     u[-1] = 0.0
 
 
-                if scheme == "Forward-Euler":
+                 if scheme == "Forward-Euler":
                     u = A @ u
-                elif scheme == "Backward-Euler":
+                 elif scheme == "Backward-Euler":
                     u = A_inv @ u
-                else:   # Crank-Nicolson
+                 else:   # Crank-Nicolson
                     u = C_inv @ (B @ u)
-                u_all.append(u.copy())
+                 u_all.append(u.copy())
 
         elif pde_type == "Wave Equation" and scheme == "FTCS (wave)":
             lam = alpha*dt**2/dx**2

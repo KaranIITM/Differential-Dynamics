@@ -28,10 +28,10 @@ with home:
 
     with col1:
         if st.button("ODE Solver"):
-            st.experimental_set_query_params(tab="ODE")
+            st.query_params(tab="ODE")
     with col2:
         if st.button("PDE Solver"):
-            st.experimental_set_query_params(tab="PDE")
+            st.query_params(tab="PDE")
     with col3:
         if st.button("Feedback"):
             st.query_params(tab="FB")

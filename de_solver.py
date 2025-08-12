@@ -34,7 +34,7 @@ with home:
             st.experimental_set_query_params(tab="PDE")
     with col3:
         if st.button("Feedback"):
-            st.experimental_set_query_params(tab="FB")
+            st.query_params(tab="FB")
 
     st.subheader("Where these solvers change the world")
     sectors = {

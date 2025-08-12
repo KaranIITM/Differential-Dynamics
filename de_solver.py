@@ -10,11 +10,11 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.linalg import solve_banded
-import warnings
-warnings.filterwarnings('ignore')
+# import warnings
+# warnings.filterwarnings('ignore')
 
 st.set_page_config(page_title="Differential-Equation Solver",
-                   layout="wide", page_icon="🔬")
+                   layout="wide", page_icon="")
 
 ##############################################################################
 # ---------------------------  FRONT  PAGE  -------------------------------- #

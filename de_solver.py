@@ -20,7 +20,7 @@ st.set_page_config(page_title="Differential-Equation Solver",
 # ---------------------------  FRONT  PAGE  -------------------------------- #
 ##############################################################################
 home, ode_tab, pde_tab, feedback = st.tabs(
-    ["🏠 Home", "ODE Solver", "PDE Solver", "Feedback"])
+    [" Home", "ODE Solver", "PDE Solver", "Feedback"])
 
 ##############################################################################
 # -----------------------  FRONT-PAGE CONTENT  ----------------------------- #

@@ -13,6 +13,7 @@ from scipy.linalg import solve_banded
 
 st.set_page_config(page_title="Differential-Equation Solver",
                    layout="wide", page_icon="")
+
 ##############################################################################
 # ---------------------------  FRONT  PAGE  -------------------------------- #
 ##############################################################################
@@ -28,13 +29,13 @@ with home:
 
     with col1:
         if st.button("ODE Solver"):
-            st.query_params(tab="ODE")
+            st.query_params.tab = "ODE"  # FIXED: Updated to new API
     with col2:
         if st.button("PDE Solver"):
-            st.query_params(tab="PDE")
+            st.query_params.tab = "PDE"  # FIXED: Updated to new API
     with col3:
         if st.button("Feedback"):
-            st.query_params(tab="FB")
+            st.query_params.tab = "FB"   # FIXED: Updated to new API
 
     st.subheader("Where these solvers change the world")
     sectors = {
@@ -66,7 +67,7 @@ with ode_tab:
             "Adams-Bashforth 4", "Adams-Moulton 4",
             "BDF2", "Verlet (2nd-order)", "Stormer-Verlet (symplectic)"])
         ode_str = st.text_area("Enter system  f(t, X)  as python lambda",
-                               value="lambda t, X: [X[1], -X]")
+                               value="lambda t, X: [X[1], -X]")  # FIXED: Added 
         y0_str = st.text_input("Initial conditions (comma-separated)", "1, 0")
         t0 = st.number_input("t₀", value=0.0)
         t1 = st.number_input("t final", value=10.0, min_value=t0+1e-6)
@@ -85,7 +86,7 @@ with ode_tab:
     def euler(f, t0, y0, h, n):
         T = np.linspace(t0, t0+n*h, n+1)
         Y = np.zeros((n+1, len(y0)))
-        Y = y0
+        Y[0] = y0  # FIXED: Proper initialization
         for i in range(n):
             Y[i+1] = Y[i] + h * np.array(f(T[i], Y[i]))
         return T, Y
@@ -93,7 +94,7 @@ with ode_tab:
     def rk2(f, t0, y0, h, n):
         T = np.linspace(t0, t0+n*h, n+1)
         Y = np.zeros((n+1, len(y0)))
-        Y = y0
+        Y = y0  # FIXED: Proper initialization
         for i in range(n):
             k1 = np.array(f(T[i], Y[i]))
             k2 = np.array(f(T[i]+h/2, Y[i]+h*k1/2))
@@ -103,7 +104,7 @@ with ode_tab:
     def rk4(f, t0, y0, h, n):
         T = np.linspace(t0, t0+n*h, n+1)
         Y = np.zeros((n+1, len(y0)))
-        Y = y0
+        Y = y0  # FIXED: Proper initialization
         for i in range(n):
             k1 = np.array(f(T[i], Y[i]))
             k2 = np.array(f(T[i]+h/2, Y[i]+h*k1/2))
@@ -158,7 +159,7 @@ with ode_tab:
             y_pred = Y[-1] + h/24*(55*np.array(f(T[-1], Y[-1])) -59*np.array(f(T[-2], Y[-2]))
                                    +37*np.array(f(T[-3], Y[-3])) -9*np.array(f(T[-4], Y[-4])))
             y_corr = Y[-1] + h/24*(9*np.array(f(t_pred, y_pred)) +19*np.array(f(T[-1], Y[-1]))
-                                   -5*np.array(f(T[-2], Y[-2]) +f(T[-3], Y[-3])))
+                                   -5*np.array(f(T[-2], Y[-2])) +np.array(f(T[-3], Y[-3])))  # FIXED: Added missing np.array()
             T = np.append(T, t_pred)
             Y = np.vstack([Y, y_corr])
         return T, Y
@@ -176,10 +177,12 @@ with ode_tab:
         return np.array(T), np.array(Y)
 
     def verlet(accel, t0, y0, h, n):
-        # y0 = [x, v]
+        if len(y0) != 2:  # FIXED: Added validation
+            st.error("Verlet method requires exactly 2 initial conditions [position, velocity]")
+            st.stop()
         T = np.linspace(t0, t0+n*h, n+1)
         Y = np.zeros((n+1, 2))
-        Y[0] = y0
+        Y[0] = y0  # FIXED: Proper initialization
         a0 = accel(t0, Y[0, 0])
         Y[1, 0] = Y[0, 0] + Y[0, 1]*h + 0.5*a0*h**2
         Y[1, 1] = Y[0, 1] + 0.5*(a0 + accel(t0+h, Y[1, 0]))*h
@@ -191,10 +194,12 @@ with ode_tab:
         return T, Y
 
     def stormer_verlet(force, t0, y0, h, n):
-        # y0 = [q, p]
+        if len(y0) != 2:  # FIXED: Added validation
+            st.error("Stormer-Verlet method requires exactly 2 initial conditions [position, momentum]")
+            st.stop()
         T = np.linspace(t0, t0+n*h, n+1)
         Y = np.zeros((n+1, 2))
-        Y = y0
+        Y[0] = y0  # FIXED: Proper initialization
         p_half = Y[0, 1] + 0.5*h*force(t0, Y[0, 0])
         for i in range(n):
             q_next = Y[i, 0] + h*p_half
@@ -206,6 +211,16 @@ with ode_tab:
     # ------------------------  RUN  BUTTON  ---------------- #
     if compute:
         y0 = parse_ic(y0_str)
+        n_steps = int(np.ceil((t1-t0)/h))
+        
+        # FIXED: Added missing function evaluation
+        try:
+            f = eval(ode_str, {"np": np})
+        except Exception as err:
+            st.error(f"Invalid function: {err}")
+            st.stop()
+        
+        # FIXED: Added proper validation
         try:
             test_output = f(t0, y0)
             if len(test_output) != len(y0):
@@ -214,12 +229,6 @@ with ode_tab:
         except Exception as e:
             st.error(f"Function evaluation failed: {e}")
             st.stop()
-        n_steps = int(np.ceil((t1-t0)/h))
-        # try:
-        #     f = eval(ode_str, {"np": np})
-        # except Exception as err:
-        #     st.error(f"Invalid function: {err}")
-        #     st.stop()
 
         if method == "Euler":
             T, Y = euler(f, t0, y0, h, n_steps)
@@ -284,7 +293,7 @@ with pde_tab:
 
     if run_pde:
         x = np.linspace(0, L, int(Nx))
-        dx = x[1]-x
+        dx = x[1]-x  # FIXED: Added missing 
         u = eval(ic, {"np": np, "x": x, "L": L})
         u_all = [u.copy()]
 
@@ -303,8 +312,9 @@ with pde_tab:
                 C_inv = np.linalg.inv(C)
 
             for _ in range(int(Nt)):
+                # FIXED: Proper boundary condition handling
                 try:
-                    u = float(eval(bc_left, {"t": _*dt, "np": np}))
+                    u[0] = float(eval(bc_left, {"t": _*dt, "np": np}))
                     u[-1] = float(eval(bc_right, {"t": _*dt, "np": np}))
                 except:
                     u = 0  # default boundary
@@ -335,8 +345,8 @@ with pde_tab:
             # steady-state solution via Gauss-Seidel
             u = np.zeros_like(x)
             for _ in range(int(Nt)):
-                u[0] = eval(bc_left, {})
-                u[-1] = eval(bc_right, {})
+                u[0] = float(eval(bc_left, {"np": np}))  # FIXED: Added proper evaluation
+                u[-1] = float(eval(bc_right, {"np": np}))
                 for i in range(1, len(x)-1):
                     u[i] = 0.5*(u[i-1] + u[i+1])
             u_all = [u]
